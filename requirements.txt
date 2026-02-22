@@ -1,0 +1,16 @@
+numpy
+pandas
+scipy
+sgp4
+joblib
+requests
+tqdm
+scikit-learn
+xgboost
+torch
+torchvision
+ultralytics
+stable-baselines3[extra]
+gymnasium
+plotly
+streamlit

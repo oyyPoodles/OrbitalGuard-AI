@@ -1,0 +1,7 @@
+﻿venv/
+__pycache__/
+.env
+data/
+models/*.pth
+models/*.pt
+
