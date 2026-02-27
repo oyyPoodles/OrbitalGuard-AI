@@ -57,8 +57,8 @@ class PlanetRenderer:
             
         self.figure.update_layout(
             margin=dict(l=0, r=0, b=0, t=0),
-            scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectmode='data', camera=dict(eye=dict(x=1.5, y=1.5, z=1.5))),
-            legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
-            paper_bgcolor="black", plot_bgcolor="black"
+            scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectmode='data', camera=dict(eye=dict(x=1.5, y=1.5, z=1.5)), bgcolor="#ffffff"),
+            legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, font=dict(color="black")),
+            paper_bgcolor="#ffffff", plot_bgcolor="#ffffff"
         )
         return self.figure

@@ -13,6 +13,7 @@ class OrbitalPropagator:
         self.tles = tles
         self.sate_array = SatrecArray([d['satrec'] for d in tles])
         self.sat_ids = np.array([d['id'] for d in tles])
+        self.sat_names = np.array([d['name'] for d in tles])
         
     def _datetime_to_jd(self, dt: datetime) -> Tuple[np.ndarray, np.ndarray]:
         """Convert standard python datetime to JD epoch required by SGP4."""
@@ -22,11 +23,12 @@ class OrbitalPropagator:
         jd_frac = np.array([diff.seconds / 86400.0 + diff.microseconds / 86400000000.0])
         return jd_whole, jd_frac
 
-    def propagate(self, target_time: datetime) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def propagate(self, target_time: datetime) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
         Fast vectorized physics calculation propagating the full catalog to the target epoch.
         Returns: 
            - valid_sat_ids (String Array)
+           - valid_sat_names (String Array)
            - positions_km (X,Y,Z Array)
            - velocities_km_s (Vx,Vy,Vz Array)
         """
@@ -39,7 +41,7 @@ class OrbitalPropagator:
         v = v.reshape(-1, 3)
         
         valid_mask = (e == 0)
-        return self.sat_ids[valid_mask], r[valid_mask], v[valid_mask]
+        return self.sat_ids[valid_mask], self.sat_names[valid_mask], r[valid_mask], v[valid_mask]
 
     def simulate_trajectory(self, start_time: datetime, duration_mins: int, step_size_mins: int = 1) -> Dict:
         """
@@ -51,7 +53,7 @@ class OrbitalPropagator:
         print(f"[Propagator] Simulating trajectory for {len(self.sat_ids)} bodies...")
         for minute_offset in range(0, duration_mins, step_size_mins):
             ts = start_time + timedelta(minutes=minute_offset)
-            ids, r, v = self.propagate(ts)
+            ids, _names, r, v = self.propagate(ts)
             
             for idx, sat_id in enumerate(ids):
                 trajectories[sat_id]['positions'].append(r[idx])
@@ -74,5 +76,5 @@ if __name__ == "__main__":
     if sats:
         propagator = OrbitalPropagator(sats)
         now = datetime.utcnow()
-        ids, pos, vel = propagator.propagate(now)
+        ids, names, pos, vel = propagator.propagate(now)
         print(f"Propagated {len(ids)} satellites successfully to Epoch {now}.")

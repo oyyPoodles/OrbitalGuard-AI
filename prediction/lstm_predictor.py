@@ -31,19 +31,31 @@ class TrajectoryPredictor:
         self.model_path = model_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = TrajectoryLSTM().to(self.device)
+        self.is_loaded = False
         
-        if not os.path.exists(model_path):
-             raise FileNotFoundError(f"[LSTM] Trained model weights missing at {model_path}. Run train_lstm.py first.")
-             
-        print(f"[LSTM] Loading real trained sequences from {model_path}")
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
-        self.model.eval()
+        if os.path.exists(model_path):
+            try:
+                print(f"[LSTM] Loading real trained sequences from {model_path}")
+                self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+                self.model.eval()
+                self.is_loaded = True
+            except Exception as e:
+                print(f"[LSTM] Warning: PyTorch could not load weights: {e}")
+        else:
+             print(f"[LSTM] Trained model weights missing at {model_path}. Using synthetic extrapolator.")
             
     def predict_next_position(self, history_sequence_km: np.ndarray) -> np.ndarray:
         """
         Takes shape (Seq_Len, 3) where columns are X, Y, Z.
         Outputs predicted next (X, Y, Z) via LSTM.
         """
+        if not self.is_loaded:
+            # Baseline linear extrapolation
+            if len(history_sequence_km) >= 2:
+                diff = history_sequence_km[-1] - history_sequence_km[-2]
+                return history_sequence_km[-1] + diff
+            return history_sequence_km[-1] if len(history_sequence_km) > 0 else np.zeros(3)
+
         # Shape prep: (Batch, Seq, Features)
         seq_tensor = torch.tensor(history_sequence_km, dtype=torch.float32).unsqueeze(0).to(self.device)
         

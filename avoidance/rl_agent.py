@@ -86,18 +86,42 @@ class AvoidanceAgent:
     def __init__(self, model_path="models/ppo_avoidance.zip"):
         self.model_path = model_path
         self.env = SpaceAvoidanceEnv()
+        self.is_loaded = False
+        self.model = None
         
         if not RL_AVAILABLE:
-            raise ImportError("[Avoidance] Stable-Baselines3 is required but not installed.")
-
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"[Avoidance] Trained PPO agent missing at {model_path}. Run train_rl.py first.")
-            
-        print(f"[Avoidance] Loading trained PPO agent from {model_path}...")
-        self.model = PPO.load(model_path, env=self.env)
+            print("[Avoidance] Stable-Baselines3 is required but not installed. Operating in deterministic mode.")
+        else:
+            if os.path.exists(model_path):
+                try:
+                    print(f"[Avoidance] Loading trained PPO agent from {model_path}...")
+                    self.model = PPO.load(model_path, env=self.env)
+                    self.is_loaded = True
+                except Exception as e:
+                    print(f"[Avoidance] Failed to load PPO model: {e}")
+            else:
+                print(f"[Avoidance] Trained PPO agent missing at {model_path}. Using synthetic evasive maneuvers.")
             
     def suggest_maneuver(self, state_obs: np.ndarray) -> np.ndarray:
         """Given the 9D State Matrix, returns the 3D Delta-V to apply."""
+        if not self.is_loaded:
+            # Deterministic perpendicular thrust
+            sat_pos = state_obs[0:3]
+            debris_pos = state_obs[3:6]
+            sat_vel = state_obs[6:9]
+            
+            # Simple vector math for avoidance: Normal vector to the collision trajectory
+            rel_pos = debris_pos - sat_pos
+            if np.linalg.norm(rel_pos) == 0:
+                return np.array([0.0, 1.0, 0.0])
+                
+            thrust_dir = np.cross(rel_pos, sat_vel)
+            if np.linalg.norm(thrust_dir) == 0:
+                thrust_dir = np.array([0.0, 1.0, 0.0])
+                
+            thrust_dir = thrust_dir / np.linalg.norm(thrust_dir)
+            return thrust_dir * 0.55  # ~ 0.55 km/s delta-v
+            
         action, _states = self.model.predict(state_obs, deterministic=True)
         return action
 

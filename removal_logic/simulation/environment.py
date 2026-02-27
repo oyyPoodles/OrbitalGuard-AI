@@ -50,13 +50,13 @@ class SpaceEnvironment:
         
     def _datetime_to_jd(self, dt):
         year, month, day = dt.year, dt.month, dt.day
-        hour, min, sec = dt.hour, dt.minute, dt.second + dt.microsecond / 1e6
+        hour, min_val, sec = dt.hour, dt.minute, dt.second + dt.microsecond / 1e6
         if month <= 2:
             year -= 1; month += 12
         A = int(year / 100)
         B = 2 - A + int(A / 4)
         jd = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + B - 1524.5
-        fr = (hour + min / 60.0 + sec / 3600.0) / 24.0
+        fr = (hour + min_val / 60.0 + sec / 3600.0) / 24.0
         return jd, fr
         
     def step_simulation(self, current_time):
@@ -86,3 +86,5 @@ class SpaceEnvironment:
     def remove_debris(self, index):
         if 0 <= index < len(self.debris_propagator.satellites):
             del self.debris_propagator.satellites[index]
+            # Immediately update positions so the renderer doesn't crash on stale length
+            self.step_simulation(datetime.utcnow())
