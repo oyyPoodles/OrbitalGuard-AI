@@ -1,5 +1,7 @@
 # AI-Powered Space Debris Tracking and Avoidance System (Research Grade)
 
+Project by: Er. Ujjwal Chaudhary 
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Problem Statement
