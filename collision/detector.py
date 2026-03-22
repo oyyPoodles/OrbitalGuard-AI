@@ -1,66 +1,60 @@
+"""
+STEP 4: KDTree-based Collision Detection
+Efficiently identifies close-approach object pairs using spatial indexing.
+"""
 import numpy as np
+from scipy.spatial import KDTree
+
+def compute_distance(p1, p2):
+    """Euclidean distance between two position vectors."""
+    return np.linalg.norm(np.array(p1) - np.array(p2))
+
+def relative_velocity(v1, v2):
+    """Relative velocity magnitude between two velocity vectors."""
+    return np.linalg.norm(np.array(v1) - np.array(v2))
+
 
 class CollisionDetector:
-    """Vectorized Euclidean distance calculations with altitude filtering."""
-    def __init__(self, state_manager):
-        self.state = state_manager
-        
-    def detect_risks(self):
+    def __init__(self, threshold_km=5.0):
         """
-        Calculates all pairwise distances. Uses altitude banding to ignore faraway objects.
-        Returns a list of dicts describing active risks.
+        Args:
+            threshold_km: Maximum distance (km) to flag as a close approach.
         """
-        risks = []
-        pos = self.state.positions
-        vel = self.state.velocities
-        objs = self.state.objects
+        self.threshold_km = threshold_km
+
+    def detect(self, objects):
+        """
+        Detect close-approach pairs using KDTree.
         
-        if pos is None or len(pos) < 2:
-            return risks
+        Args:
+            objects: list of dicts with 'id', 'name', 'position', 'velocity', 'type'
             
-        N = len(pos)
-        
-        # Calculate altitudes from earth center (magnitude of position vector)
-        altitudes = np.linalg.norm(pos, axis=1)
-        
-        for i in range(N):
-            # Skip invalid positions
-            if np.isnan(altitudes[i]):
-                continue
-                
-            for j in range(i + 1, N): # Check unique pairs
-                if np.isnan(altitudes[j]):
-                    continue
-                    
-                # 1. Altitude Band Filtering
-                # If they are more than 50km apart in raw altitude, skip exact distance calculation
-                if abs(altitudes[i] - altitudes[j]) > 50.0:
-                    continue
-                    
-                # 2. Euclidean Distance Calculation
-                dist = np.linalg.norm(pos[i] - pos[j])
-                
-                # 3. Relative Velocity
-                rel_vel = np.linalg.norm(vel[i] - vel[j])
-                
-                # 4. Risk Classification
-                risk_level = None
-                if dist < 1.0:
-                    risk_level = "HIGH"
-                elif dist < 5.0:
-                    risk_level = "MEDIUM"
-                
-                if risk_level:
-                    risks.append({
-                        'obj1_id': objs[i]['id'],
-                        'obj2_id': objs[j]['id'],
-                        'obj1_name': objs[i]['name'],
-                        'obj2_name': objs[j]['name'],
-                        'distance_km': dist,
-                        'relative_velocity_km_s': rel_vel,
-                        'risk_level': risk_level
-                    })
-                    
-        # Sort by most critical distance
-        risks.sort(key=lambda x: x['distance_km'])
-        return risks
+        Returns:
+            list of conjunction event dicts.
+        """
+        valid = [o for o in objects if not np.any(np.isnan(o['position']))]
+        if len(valid) < 2:
+            return []
+
+        positions = np.array([o['position'] for o in valid])
+
+        # O(N log N) spatial query
+        tree = KDTree(positions)
+        pairs = tree.query_pairs(r=self.threshold_km)
+
+        conjunctions = []
+        for (i, j) in pairs:
+            o1, o2 = valid[i], valid[j]
+            d = compute_distance(o1['position'], o2['position'])
+            v = relative_velocity(o1['velocity'], o2['velocity'])
+
+            conjunctions.append({
+                'obj1_id': o1.get('id', o1.get('name', str(i))),
+                'obj2_id': o2.get('id', o2.get('name', str(j))),
+                'distance_km': round(float(d), 4),
+                'relative_velocity_kms': round(float(v), 4),
+                'obj1_type': o1.get('type', 'unknown'),
+                'obj2_type': o2.get('type', 'unknown'),
+            })
+
+        return conjunctions
