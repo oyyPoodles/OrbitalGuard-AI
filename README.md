@@ -32,6 +32,104 @@ A modern, decoupled, 3-tier real-time streaming pipeline:
 2. **Proxy Server (Node.js)** → Connection multiplexing, state caching, broadcast optimization.
 3. **NASA-Grade Dashboard (React + Three.js)** → 3D hybrid rendering engine (60 FPS on 1,500+ objects), real-time risk event tabular readouts, and `dataset` JSON exporting.
 
+### Architecture Diagram
+
+```mermaid
+flowchart LR
+
+%% ================= DATA SOURCES =================
+A1[Satellite Imagery]
+A2[Radar Systems]
+A3[Optical Telescopes]
+A4[Telemetry Streams]
+A5[Simulation Data]
+
+%% ================= INGESTION =================
+B[Data Ingestion & Fusion Layer\n(Streaming + Batch)]
+
+A1 --> B
+A2 --> B
+A3 --> B
+A4 --> B
+A5 --> B
+
+%% ================= PREPROCESSING =================
+C[Preprocessing & Feature Engineering\nNoise Reduction | Normalization]
+
+B --> C
+
+%% ================= DETECT / CHARACTERIZE =================
+subgraph DETECT_PHASE [Detect & Characterize]
+    D1[YOLOv8 Detection Model\nSmall Object Detection]
+    D2[Object Characterization\nSize | Shape | Velocity]
+end
+
+C --> D1
+D1 --> D2
+
+%% ================= TRACK =================
+subgraph TRACK_PHASE [Tracking System]
+    E1[Multi-Object Tracking\nKalman Filter / DeepSORT]
+    E2[Trajectory Estimation\nOrbital Mechanics]
+    E3[Trajectory Database\nReal-Time Updates]
+end
+
+D2 --> E1
+E1 --> E2
+E2 --> E3
+
+%% ================= PREDICTION =================
+subgraph PREDICTION_PHASE [Collision Prediction]
+    F1[Relative Motion Analysis]
+    F2[ML Risk Prediction Model]
+end
+
+E3 --> F1
+F1 --> F2
+
+%% ================= DECISION ENGINE =================
+G{Collision Risk > Threshold?}
+
+F2 --> G
+
+%% ================= REMEDIATION =================
+subgraph REMEDIATION_PHASE [Remediation & Avoidance]
+    H1[RL-Based Avoidance Planner\n(PPO Agent)]
+    H2[Trajectory Optimization]
+    H3[Remediation Strategies\n(Deorbit / Laser / Capture)]
+end
+
+G -- Yes --> H1
+H1 --> H2
+H2 --> H3
+
+%% ================= SAFE PATH =================
+G -- No --> I[Continue Monitoring]
+
+%% ================= OUTPUT =================
+subgraph OUTPUT_LAYER [Command & Control]
+    J1[Satellite Control Commands]
+    J2[Alert System]
+    J3[Mission Dashboard (React)]
+end
+
+H3 --> J1
+F2 --> J2
+E3 --> J3
+H1 --> J3
+
+%% ================= STORAGE =================
+subgraph STORAGE_LAYER [Data & Model Storage]
+    K1[(Dataset Repository)]
+    K2[(Model Weights)]
+    K3[(Logs & Predictions)]
+end
+
+B --> K1
+D1 --> K2
+F2 --> K3
+```
+
 ---
 
 ## Folder Structure
