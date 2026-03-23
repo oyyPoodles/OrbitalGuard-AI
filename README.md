@@ -45,7 +45,7 @@ A4[Telemetry Streams]
 A5[Simulation Data]
 
 %% ================= INGESTION =================
-B[Data Ingestion & Fusion Layer\n(Streaming + Batch)]
+B[Data Ingestion & Fusion Layer<br/>Streaming + Batch]
 
 A1 --> B
 A2 --> B
@@ -54,14 +54,14 @@ A4 --> B
 A5 --> B
 
 %% ================= PREPROCESSING =================
-C[Preprocessing & Feature Engineering\nNoise Reduction | Normalization]
+C[Preprocessing & Feature Engineering<br/>Noise Reduction | Normalization]
 
 B --> C
 
 %% ================= DETECT / CHARACTERIZE =================
 subgraph DETECT_PHASE [Detect & Characterize]
-    D1[YOLOv8 Detection Model\nSmall Object Detection]
-    D2[Object Characterization\nSize | Shape | Velocity]
+    D1[YOLOv8 Detection Model<br/>Small Object Detection]
+    D2[Object Characterization<br/>Size | Shape | Velocity]
 end
 
 C --> D1
@@ -69,9 +69,9 @@ D1 --> D2
 
 %% ================= TRACK =================
 subgraph TRACK_PHASE [Tracking System]
-    E1[Multi-Object Tracking\nKalman Filter / DeepSORT]
-    E2[Trajectory Estimation\nOrbital Mechanics]
-    E3[Trajectory Database\nReal-Time Updates]
+    E1[Multi-Object Tracking<br/>Kalman Filter / DeepSORT]
+    E2[Trajectory Estimation<br/>Orbital Mechanics]
+    E3[Trajectory Database<br/>Real-Time Updates]
 end
 
 D2 --> E1
@@ -94,9 +94,9 @@ F2 --> G
 
 %% ================= REMEDIATION =================
 subgraph REMEDIATION_PHASE [Remediation & Avoidance]
-    H1[RL-Based Avoidance Planner\n(PPO Agent)]
+    H1[RL-Based Avoidance Planner<br/>PPO Agent]
     H2[Trajectory Optimization]
-    H3[Remediation Strategies\n(Deorbit / Laser / Capture)]
+    H3[Remediation Strategies<br/>Deorbit / Laser / Capture]
 end
 
 G -- Yes --> H1
