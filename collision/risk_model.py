@@ -55,7 +55,7 @@ class RiskClassifier:
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
         with open(self.model_path, 'wb') as f:
             pickle.dump(self.model, f)
-        print(f"✅ XGBoost model saved to {self.model_path}")
+        print(f"[OK] XGBoost model saved to {self.model_path}")
 
     def classify(self, distance_km, relative_velocity_kms):
         """

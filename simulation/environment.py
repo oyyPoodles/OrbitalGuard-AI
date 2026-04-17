@@ -20,7 +20,7 @@ class OrbitalEnvironment:
         self.propagator = SGP4Propagator(entries)
         self.sim_time = datetime.utcnow()
         self.object_count = len(self.propagator.satellites)
-        print(f"🌍 Environment initialized with {self.object_count} objects")
+        print(f"[Info] Environment initialized with {self.object_count} objects")
 
     def step(self, dt_seconds=1.0):
         """

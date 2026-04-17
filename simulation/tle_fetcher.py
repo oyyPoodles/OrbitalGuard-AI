@@ -23,7 +23,7 @@ def fetch_tle_online():
             all_lines.extend(text.strip().splitlines())
         return all_lines
     except Exception as e:
-        print(f"⚠️ Online TLE fetch failed: {e}")
+        print(f"[Warning] Online TLE fetch failed: {e}")
         return None
 
 
@@ -78,9 +78,9 @@ def get_tle_data(path=None, max_objects=1500):
     """
     online = fetch_tle_online()
     if online and len(online) >= 3:
-        print(f"✅ Fetched {len(online)} TLE lines online")
+        print(f"[OK] Fetched {len(online)} TLE lines online")
         return parse_tle_entries(online, max_objects)
 
-    print("📂 Using local TLE data")
+    print("[Info] Using local TLE data")
     lines = load_tle_lines(path)
     return parse_tle_entries(lines, max_objects)

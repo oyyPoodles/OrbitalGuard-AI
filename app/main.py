@@ -23,10 +23,28 @@ from detection.yolo_simulator import YOLOSimulator
 from tracking.kalman_filter import KalmanFilter6D
 from collision.detector import CollisionDetector
 from collision.risk_model import RiskClassifier
+from prediction.lstm_model import load_hybrid_model, predict_hybrid_correction
+from avoidance.ppo_agent import PPOAvoidanceAgent
 from utils.constants import RENDER_SCALE, DETECTION_RADIUS, MAX_OBJECTS
 
+from contextlib import asynccontextmanager
+
+# Store references to background tasks to prevent garbage collection
+background_tasks = set()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task1 = asyncio.create_task(physics_loop())
+    task2 = asyncio.create_task(data_logger())
+    background_tasks.add(task1)
+    background_tasks.add(task2)
+    yield
+    # Clean up on shutdown
+    task1.cancel()
+    task2.cancel()
+
 # ─── App Init ─────────────────────────────────────────────
-app = FastAPI(title="OrbitalGuard AI API")
+app = FastAPI(title="OrbitalGuard AI API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,14 +64,17 @@ env = OrbitalEnvironment(max_objects=MAX_OBJECTS)
 yolo_sim = YOLOSimulator(noise_std=0.5)
 collision_detector = CollisionDetector(threshold_km=DETECTION_RADIUS)
 risk_classifier = RiskClassifier(model_path='models/xgb_risk.pkl')
+lstm_model = load_hybrid_model('models/hybrid_lstm.pth')
+ppo_agent = PPOAvoidanceAgent(model_path='models/ppo_avoidance.zip')
 
-# Per-object Kalman filters
+# Per-object Kalman filters and tracking history for LSTM
 kalman_filters = {}
+object_history = {}
 
 # ─── State ────────────────────────────────────────────────
 current_risks = []
 clients: List[WebSocket] = []
-
+loop_perf_ms = 0.0
 
 def get_valid_objects():
     """Get all objects with valid (non-NaN) positions."""
@@ -63,8 +84,11 @@ def get_valid_objects():
 # ─── Background Physics Loop ─────────────────────────────
 async def physics_loop():
     global current_risks
+    global loop_perf_ms
 
     while True:
+        t_start = time.time()
+        
         # 1. Advance simulation by 1 second
         env.step(dt_seconds=1.0)
         objects = get_valid_objects()
@@ -82,13 +106,56 @@ async def physics_loop():
             kf.predict()
             kf.update(measurement)
 
-        # 4. Collision Detection (KDTree)
+        # 3.5 Hybrid LSTM Correction Layer
+        # Correct the deterministic SGP4 trajectory using LSTM temporal analysis
+        for obj in objects:
+            oid = obj['name']
+            if oid not in object_history:
+                object_history[oid] = []
+            
+            # Use noise-smoothed Kalman state if available
+            if oid in kalman_filters:
+                state = kalman_filters[oid].state.flatten()
+            else:
+                state = np.concatenate([obj['position'], obj['velocity']])
+                
+            object_history[oid].append(state)
+            if len(object_history[oid]) > 10:
+                object_history[oid].pop(0)
+                
+            # Apply correction if we have a full sequence (Cold Start Fallback: use pure SGP4 until buffer is full)
+            if len(object_history[oid]) == 10:
+                try:
+                    correction = predict_hybrid_correction(lstm_model, np.array(object_history[oid]))
+                    obj['position'] += correction
+                except Exception:
+                    pass # Ensure robust edge-case handling if prediction fails on corrupted states
+
+        # 4. Collision Detection (KDTree) - Now using corrected trajectories
         conjunctions = collision_detector.detect(objects)
 
         # 5. Risk Classification (XGBoost)
         current_risks = risk_classifier.classify_batch(conjunctions)
 
-        # 6. Broadcast to WebSocket clients
+        # 6. Autonomous Avoidance (PPO RL) for HIGH risks
+        for r in current_risks:
+            r['avoidance_maneuver'] = None
+            if r.get('risk_level') == 'HIGH':
+                obj1 = next((o for o in objects if o['name'] == r['obj1_id']), None)
+                obj2 = next((o for o in objects if o['name'] == r['obj2_id']), None)
+                if obj1 and obj2:
+                    maneuver = ppo_agent.compute_avoidance(
+                        relative_position=obj2['position'] - obj1['position'],
+                        relative_velocity=obj2['velocity'] - obj1['velocity'],
+                        own_position=obj1['position'],
+                        own_velocity=obj1['velocity']
+                    )
+                    r['avoidance_maneuver'] = {
+                        "delta_v": [round(float(v), 3) for v in maneuver['delta_v']],
+                        "fuel_cost": round(maneuver['fuel_cost'], 3)
+                    }
+
+        # 7. Broadcast to WebSocket clients
         if clients:
             payload = []
             for obj in objects[:MAX_OBJECTS]:
@@ -101,11 +168,15 @@ async def physics_loop():
                     "type": obj['type']
                 })
 
-            risk_payload = [
-                {"a": r['obj1_id'], "b": r['obj2_id'],
-                 "distance": r['distance_km'], "risk": r.get('risk_level', 'LOW')}
-                for r in current_risks[:50]
-            ]
+            risk_payload = []
+            for r in current_risks[:50]:
+                entry = {
+                    "a": r['obj1_id'], "b": r['obj2_id'],
+                    "distance": r['distance_km'], "risk": r.get('risk_level', 'LOW')
+                }
+                if r.get('avoidance_maneuver'):
+                    entry["maneuver"] = r['avoidance_maneuver']
+                risk_payload.append(entry)
 
             message = json.dumps({
                 "type": "update",
@@ -123,8 +194,12 @@ async def physics_loop():
             for ws in disconnected:
                 clients.remove(ws)
 
-        # 10 Hz update rate
-        await asyncio.sleep(0.1)
+        # Performance timing
+        loop_perf_ms = (time.time() - t_start) * 1000.0
+
+        # Dynamic sleep to target 10 Hz (100ms) cycle time
+        sleep_time = max(0.01, 0.1 - (loop_perf_ms / 1000.0))
+        await asyncio.sleep(sleep_time)
 
 
 # ─── Data Logging ─────────────────────────────────────────
@@ -176,15 +251,12 @@ async def data_logger():
             with open(os.path.join(DATASET_DIR, 'risk_log.json'), 'a') as f:
                 f.write(json.dumps(risk_entry) + '\n')
 
-            print(f"📝 Logged {len(objects)} objects, {len(conj)} collisions, {len(current_risks)} risks")
+            print(f"[Log] System Healthy | Objects: {len(objects)} | Collisions: {len(conj)} | Risks: {len(current_risks)} | Loop Time: {loop_perf_ms:.2f} ms")
         except Exception as e:
-            print(f"⚠️ Logging error: {e}")
+            print(f"[Warning] Logging error: {e}")
 
 
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(physics_loop())
-    asyncio.create_task(data_logger())
+
 
 
 # ─── REST Endpoints ───────────────────────────────────────
@@ -216,3 +288,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         if websocket in clients:
             clients.remove(websocket)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

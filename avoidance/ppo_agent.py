@@ -8,6 +8,9 @@ import gymnasium as gym
 from gymnasium import spaces
 
 try:
+    import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
     from stable_baselines3 import PPO
     HAS_SB3 = True
 except ImportError:
@@ -101,7 +104,7 @@ class PPOAvoidanceAgent:
         self.model = PPO("MlpPolicy", self.env, verbose=1)
         self.model.learn(total_timesteps=total_timesteps)
         self.model.save(self.model_path)
-        print(f"✅ PPO agent saved to {self.model_path}")
+        print(f"[OK] PPO agent saved to {self.model_path}")
 
     def compute_avoidance(self, relative_position, relative_velocity, own_position, own_velocity):
         """
