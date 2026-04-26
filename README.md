@@ -306,47 +306,73 @@ DB3 --> XGB
 <br/>
 
 ```
-  ┌─────────────┐
-  │  TLE  Data  │  ← Two-Line Element sets (NORAD / Space-Track)
-  └──────┬──────┘
-         │  SGP4 propagation
-         ▼
-  ┌─────────────────────┐
-  │  YOLO v8 Detection  │  ← Sub-10cm debris with sensor noise simulation
-  └──────────┬──────────┘
-             │  Bounding boxes + confidence scores
-             ▼
-  ┌────────────────────────┐
-  │  Kalman Filter Tracker  │  ← Extended Kalman Filter (EKF) smoothing
-  └────────────┬────────────┘
-               │  Stable trajectory sequences
-               ▼
-  ┌─────────────────────┐
-  │  LSTM  Forecaster   │  ← N-step future position prediction
-  └──────────┬──────────┘
-             │  Predicted state vectors
-             ▼
-  ┌──────────────────────────┐
-  │  KDTree Conjunction Search│  ← Sub-second proximity queries
-  └─────────────┬────────────┘
-                │  Conjunction candidates
-                ▼
-  ┌─────────────────────────┐
-  │  XGBoost Risk Classifier │
-  └──────┬──────┬──────┬────┘
-         │      │      │
-         ▼      ▼      ▼
-      🔴 HIGH  🟡 MED  🟢 LOW
-         │
-         ▼
-  ┌─────────────────┐
-  │  PPO RL  Agent  │  ← Stable-Baselines3 · fuel-optimal ΔV
-  └────────┬────────┘
-           │  Avoidance trajectory
-           ▼
-  ┌──────────────────────┐
-  │  Satellite  Command  │  ← Uplinked via mission control interface
-  └──────────────────────┘
+ flowchart LR
+
+%% =========================
+%% STYLES (HIGH CONTRAST)
+%% =========================
+classDef core fill:#0b3d91,color:#ffffff,stroke:#4da3ff,stroke-width:2px
+classDef ai fill:#7a1f3a,color:#ffffff,stroke:#ff6b9a,stroke-width:2px
+classDef decision fill:#1f7a3a,color:#ffffff,stroke:#8fd14f,stroke-width:2px
+classDef action fill:#7a5a1f,color:#ffffff,stroke:#f5c542,stroke-width:2px
+classDef passive fill:#444444,color:#ffffff,stroke:#aaaaaa,stroke-width:1px
+
+%% =========================
+%% MAIN PIPELINE (CENTER)
+%% =========================
+subgraph PIPELINE["ML Pipeline"]
+direction LR
+    TLE["TLE"]
+    SGP4["SGP4"]
+    YOLO["YOLOv8"]
+    KF["Kalman (EKF)"]
+    LSTM["LSTM"]
+    KD["KDTree"]
+    XGB["XGBoost"]
+
+    TLE --> SGP4 --> YOLO --> KF --> LSTM --> KD --> XGB
+end
+
+%% =========================
+%% HIGH RISK (TOP)
+%% =========================
+subgraph HIGH["High Risk Response"]
+    RL["PPO Agent"]
+    CMD["Command"]
+end
+
+%% =========================
+%% LOW / MED (BOTTOM)
+%% =========================
+subgraph LOW["Monitoring"]
+    MON["Monitor"]
+    PASS["Passive"]
+end
+
+%% =========================
+%% CONNECTIONS
+%% =========================
+XGB -->|HIGH| RL
+RL --> CMD
+
+XGB -->|MED| MON
+XGB -->|LOW| PASS
+
+%% =========================
+%% VISUAL OUTPUT
+%% =========================
+CMD -.-> SAT["Satellite"]
+MON -.-> DASH["Dashboard"]
+PASS -.-> DASH
+
+%% =========================
+%% STYLING APPLY
+%% =========================
+class TLE,SGP4 core
+class YOLO,KF,LSTM,RL ai
+class KD,XGB decision
+class CMD action
+class MON,PASS passive
 ```
 
 <br/>
