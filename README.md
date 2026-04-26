@@ -161,210 +161,138 @@ Decades of space launches have turned Low Earth Orbit into a **high-speed debris
 <br/>
 
 ```mermaid
-flowchart LR
+flowchart TB
 
-    %% ── DATA SOURCES ──
-    subgraph SRC ["  📡  Data Sources  "]
-        A1["🛰️ Satellite Imagery"]
-        A2["📻 Radar Systems"]
-        A3["🔭 Optical Telescopes"]
-        A4["📈 Telemetry Streams"]
-        A5["🖥️ Simulation Engine"]
-    end
+%% =========================
+%% STYLES
+%% =========================
+classDef data fill:#0b3d91,color:#fff,stroke:#1c6ed5
+classDef api fill:#1f6f5e,color:#fff,stroke:#2bbbad
+classDef proc fill:#5c4d7d,color:#fff,stroke:#9b7ede
+classDef ai fill:#7a2e2e,color:#fff,stroke:#ff6b6b
+classDef db fill:#6b5e2e,color:#fff,stroke:#f1c40f
+classDef ui fill:#2e5c7a,color:#fff,stroke:#3498db
+classDef exec fill:#3d3d3d,color:#fff,stroke:#aaaaaa
 
-    %% ── INGESTION ──
-    B["📥 Data Ingestion & Fusion
-    ─────────────────────────
-    Streaming + Batch Processing"]
+%% =========================
+%% DATA SOURCES
+%% =========================
+subgraph DATA["Data Sources"]
+    direction LR
+    TLE["TLE Orbital Elements"]
+    SENSOR["Ground / Space Sensors"]
+    PERT["Perturbation Models (Drag, J2, SRP)"]
+    HIST["Historical Conjunction Dataset"]
+end
+class TLE,SENSOR,PERT,HIST data
 
-    A1 & A2 & A3 & A4 & A5 --> B
+%% =========================
+%% INGESTION LAYER
+%% =========================
+subgraph API["API & Streaming Layer"]
+    GW["API Gateway (REST / WebSocket)"]
+    ING["Streaming Ingestion (Kafka-like)"]
+end
+class GW,ING api
 
-    %% ── PREPROCESSING ──
-    C["⚙️ Preprocessing & Feature Engineering
-    ─────────────────────────────────────
-    Noise Reduction · Normalization · Fusion"]
-    B --> C
+%% =========================
+%% PREPROCESSING
+%% =========================
+subgraph PROC["Physics + Preprocessing"]
+    CLEAN["Data Cleaning & Normalization"]
+    FEAT["Feature Engineering (State Vectors)"]
+    SGP4["SGP4 Orbit Propagation (ECI)"]
+    EKF["Extended Kalman Filter (Noise Reduction)"]
+end
+class CLEAN,FEAT,SGP4,EKF proc
 
-    %% ── DETECT ──
-    subgraph DETECT ["  🔍  Detect & Characterize  "]
-        D1["YOLOv8 Detection
-        ─────────────────
-        Sub-10cm Objects"]
-        D2["Object Characterization
-        ─────────────────────
-        Size · Shape · Velocity"]
-        D1 --> D2
-    end
-    C --> D1
+%% =========================
+%% AI PIPELINE
+%% =========================
+subgraph AI["AI Intelligence Engine"]
+    direction LR
+    LSTM["LSTM Temporal Prediction (Trajectory Drift)"]
+    KD["KDTree Spatial Search (Nearest Objects)"]
+    XGB["XGBoost Risk Model (Collision Probability)"]
+    RL["PPO Agent (ΔV Optimization)"]
+end
+class LSTM,KD,XGB,RL ai
 
-    %% ── TRACK ──
-    subgraph TRACK ["  📊  Tracking System  "]
-        E1["Multi-Object Tracking
-        ──────────────────────
-        Kalman Filter / DeepSORT"]
-        E2["Trajectory Estimation
-        ─────────────────────
-        SGP4 Orbital Mechanics"]
-        E3[("🗄️ Trajectory DB
-        Real-Time")]
-        E1 --> E2 --> E3
-    end
-    D2 --> E1
+%% =========================
+%% STORAGE
+%% =========================
+subgraph DB["Data Layer"]
+    DB1["State Vector Store"]
+    DB2["Prediction & Risk Database"]
+    DB3["Model Training Repository"]
+end
+class DB1,DB2,DB3 db
 
-    %% ── PREDICT ──
-    subgraph PRED ["  🧠  Collision Prediction  "]
-        F1["Relative Motion Analysis
-        ─────────────────────────
-        KDTree Conjunction Search"]
-        F2["XGBoost Risk Model
-        ──────────────────
-        HIGH · MEDIUM · LOW"]
-        F1 --> F2
-    end
-    E3 --> F1
+%% =========================
+%% VISUALIZATION
+%% =========================
+subgraph UI["Visualization Layer"]
+    DASH["3D WebGL Orbital Engine"]
+    RADAR["2D Conjunction Radar"]
+    ALERT["Risk Alert System"]
+end
+class DASH,RADAR,ALERT ui
 
-    %% ── DECISION ──
-    G{{"⚠️ Risk
-    Above
-    Threshold?"}}
-    F2 --> G
+%% =========================
+%% EXECUTION
+%% =========================
+subgraph EXEC["Execution & Control"]
+    CTRL["Mission Control Interface"]
+    VALID["Command Validator (Constraints Check)"]
+    SAT["Satellite Actuation System"]
+end
+class CTRL,VALID,SAT exec
 
-    %% ── REMEDIATION ──
-    subgraph REM ["  🚀  Autonomous Remediation  "]
-        H1["PPO RL Agent
-        ─────────────
-        ΔV Computation"]
-        H2["Trajectory
-        Optimization"]
-        H3["Strategy Selection
-        ───────────────────
-        Deorbit · Laser · Capture"]
-        H1 --> H2 --> H3
-    end
-    G -- "🔴 YES" --> H1
-    G -- "🟢 NO"  --> I["🔄 Continue
-    Monitoring"]
+%% =========================
+%% DATA FLOW
+%% =========================
 
-    %% ── OUTPUT ──
-    subgraph OUT ["  🖥️  Command & Control  "]
-        J1["🛰️ Satellite Commands"]
-        J2["🚨 Alert System"]
-        J3["📊 Mission Dashboard
-        ─────────────────────
-        React + Three.js · 60 FPS"]
-    end
-    H3 --> J1
-    F2 --> J2
-    E3 & H1 --> J3
+%% Input
+DATA --> GW
+GW --> ING
 
-    %% ── STORAGE ──
-    subgraph STORE ["  🗃️  Persistent Storage  "]
-        K1[("📦 Dataset Repo")]
-        K2[("🧠 Model Weights")]
-        K3[("📋 Logs & Metrics")]
-    end
-    B --> K1
-    D1 --> K2
-    F2 --> K3
-```
-```
+%% Preprocessing
+ING --> CLEAN
+CLEAN --> FEAT
+FEAT --> SGP4
+SGP4 -->|ECI State Vectors| EKF
 
-<br/>
+%% AI Flow
+EKF --> LSTM
+LSTM -->|Predicted Trajectories| KD
+KD -->|Close Approach Candidates| XGB
 
----
+%% Decision Branch
+XGB -->|High Collision Risk| RL
+XGB -->|Low / Medium Risk| DASH
 
-<br/>
+%% RL Path
+RL -->|Optimized ΔV Maneuver| VALID
+VALID --> CTRL
+CTRL -->|Command Uplink| SAT
 
-## 🔄 &nbsp; End-to-End Workflow
+%% Storage Links
+FEAT --> DB1
+XGB --> DB2
+DB2 --> DB3
 
-<div align="center">
+%% Visualization Links
+EKF --> DASH
+XGB --> ALERT
+RL --> DASH
+DASH --> RADAR
 
-*Full sequence from TLE upload to satellite maneuver command — 5 phases, fully automated.*
+%% Control Feedback
+DASH --> CTRL
 
-</div>
-
-<br/>
-
-```mermaid
-sequenceDiagram
-    autonumber
-
-    participant U  as 👤 Mission Control
-    participant GW as 🌐 API Gateway
-    participant IN as 📥 Ingestion Layer
-    participant PP as ⚙️ Preprocessing
-    participant YO as 🔍 YOLO Detector
-    participant KF as 📊 Kalman Tracker
-    participant LS as 🧠 LSTM Predictor
-    participant XG as ⚖️ XGBoost Classifier
-    participant RL as 🤖 PPO Agent
-    participant DB as 🗃️ Data Store
-    participant UI as 🖥️ React Dashboard
-
-    rect rgb(13, 27, 62)
-        Note over U,GW: ━━━━━━━━━  PHASE 1 · DATA INGESTION  ━━━━━━━━━
-        U  ->> GW : Upload TLE dataset + sensor config
-        GW ->> IN : POST /ingest  [stream open]
-        IN ->> PP : Raw TLE + multi-source sensor streams
-        PP ->> PP : Clean · normalize · feature engineer
-        PP -->> DB: Persist preprocessed records
-        PP -->> UI: Ingestion status update
-    end
-
-    rect rgb(10, 50, 35)
-        Note over PP,KF: ━━━━━━━━━  PHASE 2 · DETECT & TRACK  ━━━━━━━━━
-        PP  ->> YO : Processed frame batches
-        YO  ->> YO : SGP4 propagation → YOLO inference
-        Note right of YO: Realistic sensor noise injected
-        YO -->> KF : Detected objects + bounding metadata
-        KF  ->> KF : Multi-object Kalman smoothing (EKF)
-        KF -->> LS : Stable trajectory state sequences
-        KF -->> UI : Live 3D position stream
-    end
-
-    rect rgb(55, 28, 10)
-        Note over LS,XG: ━━━━━━━━━  PHASE 3 · PREDICT & CLASSIFY  ━━━━━━━━━
-        LS  ->> LS : LSTM forward pass (N time steps)
-        LS -->> XG : Predicted future state vectors
-        XG  ->> XG : KDTree conjunction analysis
-        XG  ->> XG : Feature extraction → XGBoost inference
-        XG -->> GW : Risk tier: 🔴 HIGH · 🟡 MEDIUM · 🟢 LOW
-        XG -->> DB : Persist predictions + confidence scores
-        XG -->> UI : Risk event table update
-    end
-
-    alt 🔴 HIGH RISK — Miss distance < 1 km
-        rect rgb(65, 10, 10)
-            Note over XG,RL: ━━━━━━━━━  PHASE 4A · AUTONOMOUS AVOIDANCE  ━━━━━━━━━
-            GW  ->> RL : Trigger PPO agent [state vector + constraints]
-            RL  ->> RL : Simulate avoidance trajectories
-            RL  ->> RL : Optimise for min ΔV + fuel cost
-            RL -->> GW : Optimal avoidance trajectory
-            GW -->> U  : 🚨 CRITICAL ALERT + maneuver command
-            GW -->> UI : Push high-risk collision event
-            UI -->> U  : 3D maneuver overlay rendered
-        end
-    else 🟡 MEDIUM RISK — Miss distance 1–5 km
-        rect rgb(55, 45, 5)
-            Note over GW,UI: ━━━━━━━━━  PHASE 4B · ENHANCED MONITORING  ━━━━━━━━━
-            GW -->> UI : Add to watchlist · increase poll rate
-            GW -->> U  : 📋 Advisory notification dispatched
-        end
-    else 🟢 LOW RISK — Miss distance > 5 km
-        rect rgb(10, 55, 20)
-            Note over GW,UI: ━━━━━━━━━  PHASE 4C · PASSIVE MONITORING  ━━━━━━━━━
-            GW -->> UI : Standard telemetry heartbeat
-        end
-    end
-
-    rect rgb(20, 18, 55)
-        Note over U,UI: ━━━━━━━━━  PHASE 5 · VISUALISE & EXPORT  ━━━━━━━━━
-        KF -->> UI : Real-time 3D orbital positions (60 FPS)
-        XG -->> UI : Live risk event tabular readout
-        RL -->> UI : Avoidance maneuver trajectory overlay
-        U  ->> UI  : Request dataset export
-        UI -->> U  : 📦 risk_dataset.json  [conjunction log]
-    end
+%% ML Feedback Loop
+DB3 -->|Retraining Data| LSTM
+DB3 --> XGB
 ```
 
 <br/>
